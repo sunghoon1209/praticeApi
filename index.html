@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>simpleMap</title>
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+    <script src="https://apis.openapi.sk.com/tmap/jsv2?version=1&appKey=dO197TtHVI2DCKg0uMgz35rI7PLRfeS13vCWpkYb">
+    </script>
+
+</head>
+<style>
+    input {
+        margin-left: 50px;
+    }
+</style>
+
+<body onload="initTmap();">
+
+    <input id="city_do" name="city_do" value="">시
+    <input id="gu_gun" name="gu_gun" value="">구
+    <input id="dong" name="dong" value="">동
+    <input type="text" class="text_custom" id="bunji" name="bunji" value="">번지
+    <button id="btn_select">길찾기</button>
+    <div id="map_div"></div>
+
+    <ul id="route">
+        <div> 소요시간 : <li id="totalTime"></li>
+        </div>
+        <div> 요금 : <li id="fare"></li>
+        </div>
+        <div> 환승횟수 : <li id="transCount"></li>
+        </div>
+    </ul>
+    <script type="text/javascript">
+        let map, marker1;
+        let appkey = "dO197TtHVI2DCKg0uMgz35rI7PLRfeS13vCWpkYb";
+
+        function initTmap() {
+
+            // 1. 지도 띄우기
+            map = new Tmapv2.Map("map_div", {
+                center: new Tmapv2.LatLng(37.4657027, 126.8877010),
+                width: "100%",
+                height: "400px",
+                zoom: 17,
+                zoomControl: true,
+                scrollwheel: true
+
+            });
+
+
+            let marker = new Tmapv2.Marker({
+                position: new Tmapv2.LatLng(37.4657027, 126.8877010),
+                icon: "./fv.png"
+                    // "http://tmapapi.sktelecom.com/upload/tmap/marker/pin_r_m_1.png"
+                    ,
+                title: "ITSIX",
+                label: "ITSIX",
+                map: map
+
+            });
+
+
+
+
+            $("#btn_select")
+                .click(
+                    function () {
+
+                        // 입력된 주소를 좌표값으로 변경
+                        let city_do = $("#city_do").val();
+                        let gu_gun = $("#gu_gun").val();
+                        let dong = $("#dong").val();
+                        let bunji = $('#bunji').val();
+
+                        let headers = {};
+                        headers["appKey"] = appkey;
+
+                        let url = new URL("https://apis.openapi.sk.com/tmap/geo/geocoding");
+                        url.searchParams.append("version", "1");
+                        url.searchParams.append("format", "json");
+                        url.searchParams.append("coordType", "WGS84GEO");
+                        url.searchParams.append("city_do", city_do);
+                        url.searchParams.append("gu_gun", gu_gun);
+                        url.searchParams.append("dong", dong);
+                        url.searchParams.append("bunji", bunji);
+
+
+                        fetch(url.toString(), {
+                                method: "GET",
+                                headers: headers
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                let appkey = "dO197TtHVI2DCKg0uMgz35rI7PLRfeS13vCWpkYb";
+                                let resultData = data.coordinateInfo;
+                                let lat = resultData.lat;
+                                let lon = resultData.lon;
+                                console.log(lat);
+                                console.log(lon);
+                                let RouteURL = "https://apis.openapi.sk.com/transit/routes";
+                                fetch(RouteURL, {
+                                        method: "POST",
+                                        headers: {
+                                            "appKey": appkey,
+                                            "Content-Type": "application/json"
+                                        },
+                                        body: JSON.stringify({
+                                            "startX": lon,
+                                            "startY": lat,
+                                            "endX": "126.8877010",
+                                            "endY": "37.4657027",
+                                            "count": 10,
+                                            "lang": 0,
+                                            "format": "json"
+                                        })
+                                    })
+                                    .then(response => response.json()) // JSON 파싱
+                                    .then(data => {
+                                        const jsonData = data;
+                                        console.log(jsonData);
+                                        // console.log(jsonData.metaData.plan.itineraries)
+                                        let Newdata = jsonData.metaData.plan.itineraries;
+                                        let ul = document.getElementById("route");
+                                        let liFare = document.getElementById("fare");
+                                        let liTime = document.getElementById("totalTime");
+                                        let liTransCount = document.getElementById("transCount");
+                                        console.log(Newdata);
+
+                                        let fare = Newdata[0].fare.regular.totalFare;
+                                        let time = Math.round((Newdata[0].totalTime) / 60);
+                                        let transCount = Newdata[0].transferCount;
+                                        let way = Newdata.slice(0, 5);
+                                        console.log(way);
+                                        console.log(fare);
+                                        // let trans = document.createElement("ul")
+                                        liFare.textContent = fare + '원';
+                                        liTransCount.textContent = transCount + '번';
+                                        liTime.textContent = '약 ' + time + ' 분';
+                                    })
+
+                            })
+
+
+                            .catch(error => console.error("Error:", error));
+
+                        // 위에서 가져온 좌표값을 아래 좌표에 넣어서 경로탐색
+                        /* ============================================== 문제가발생한 이유  
+                            1. 위에서 선언한 lat과 lon이 지역변수?
+                              
+                            2. fetch는 비동기라서 위의 lat과 lon을 호출하기 전에 이미 아래 함수가 실행?
+                        ======================================================================  */
+
+
+                    }
+
+                );
+        }
+    </script>
+</body>
+
+</html>
